@@ -2,11 +2,11 @@ ODIR=./build
 IDIR=./include
 EXEC=program
 
-_OBJ = main.o
+_OBJ = main.o record.o page.o
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 FLAGS = -Wall -I$(IDIR) -g
 
-_DEPS = 
+_DEPS = record.h page.h
 DEPS = $(patsubst %,$(IDIR)/%,$(_DEPS))
 
 $(ODIR)/%.o: src/%.c $(DEPS)
