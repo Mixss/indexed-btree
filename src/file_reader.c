@@ -162,7 +162,6 @@ int get_number_of_records(const char* pages_filename)
 int read_page(const char* pages_filename, struct page *p, int index, int order)
 {
     FILE* f = fopen(pages_filename, "rb");
-    printf("Reading at at %d, ps=%d\n", sizeof(struct metadata) + (index * PAGE_SIZE), PAGE_SIZE);
     fseek(f, sizeof(struct metadata) + (index * PAGE_SIZE), 0);
     if(fread(p, PAGE_SIZE, 1, f) < 1)
     {
@@ -176,7 +175,6 @@ int read_page(const char* pages_filename, struct page *p, int index, int order)
 int save_page_at(const char* pages_filename, struct page *p, int index, int order)
 {
     FILE* f = fopen(pages_filename, "wb");
-    //printf("Saving at %d, ps=%d\n", sizeof(struct metadata) + (index * PAGE_SIZE), PAGE_SIZE);
     fseek(f, sizeof(struct metadata) + (index * PAGE_SIZE), 0);
     if(fwrite(p, PAGE_SIZE, 1, f) < 1)
     {
@@ -200,4 +198,18 @@ int save_page(const char* pages_filename, struct page *p, int order)
     fclose(f);
 
     return index;
+}
+
+int read_metadata(const char* pages_filename, struct metadata *data)
+{
+    FILE* f = fopen(pages_filename, "rb");
+
+    if(fread(data, sizeof(struct metadata), 1, f) < 1)
+    {
+        printf("Failed to read metadata\n");
+        return 1;
+    }
+    fclose(f);
+
+    return 0;
 }

@@ -38,6 +38,10 @@ int save_page_at(const char* pages_filename, struct page *p, int index, int orde
 // saves the page in the file and returns its index
 int save_page(const char* pages_filename, struct page *p, int order);
 
+// reads metadata, returns 0 if successfull
+int read_metadata(const char* pages_filename,struct metadata *data);
+
+
 
 
 #endif
