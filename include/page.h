@@ -1,6 +1,8 @@
 #ifndef PAGE_H
 #define PAGE_H
 
+#define PAGE_SIZE (sizeof(struct page) + sizeof(struct page_entry) * 2 * order)
+
 struct page_entry
 {
     struct page *other_page;

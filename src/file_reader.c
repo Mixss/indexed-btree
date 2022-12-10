@@ -8,6 +8,7 @@ int create_files(const char* pages_filename, const char* records_filename, int o
     data.height = 1;
     data.number_of_records = 0;
     data.order = order;
+    data.root_page_index = 0;
 
     if( fwrite(&data, sizeof(data), 1, pages) < 1)
     {
@@ -16,7 +17,7 @@ int create_files(const char* pages_filename, const char* records_filename, int o
     }
 
     struct page *root_page = page_init(root_page, order);
-    if( fwrite(root_page, sizeof(*root_page), 1, pages) < 1)
+    if( fwrite(root_page, PAGE_SIZE, 1, pages) < 1)
     {
         printf("Failed to add root_page to page file:\n");
         return 2;
@@ -156,4 +157,47 @@ int get_number_of_records(const char* pages_filename)
     fclose(f);
 
     return 0;
+}
+
+int read_page(const char* pages_filename, struct page *p, int index, int order)
+{
+    FILE* f = fopen(pages_filename, "rb");
+    printf("Reading at at %d, ps=%d\n", sizeof(struct metadata) + (index * PAGE_SIZE), PAGE_SIZE);
+    fseek(f, sizeof(struct metadata) + (index * PAGE_SIZE), 0);
+    if(fread(p, PAGE_SIZE, 1, f) < 1)
+    {
+        printf("Failed to read page at index %d\n", index);
+        return 1;
+    }
+    fclose(f);
+    return 0;
+}
+
+int save_page_at(const char* pages_filename, struct page *p, int index, int order)
+{
+    FILE* f = fopen(pages_filename, "wb");
+    //printf("Saving at %d, ps=%d\n", sizeof(struct metadata) + (index * PAGE_SIZE), PAGE_SIZE);
+    fseek(f, sizeof(struct metadata) + (index * PAGE_SIZE), 0);
+    if(fwrite(p, PAGE_SIZE, 1, f) < 1)
+    {
+        printf("Failed to write page at index %d\n", index);
+        return 1;
+    }
+    fclose(f);
+
+    return 0;
+}
+
+int save_page(const char* pages_filename, struct page *p, int order)
+{
+    FILE* f = fopen(pages_filename, "ab");
+    if(fwrite(p, PAGE_SIZE, 1, f) < 1)
+    {
+        printf("Failed to write page at the end of file\n");
+        return 1;
+    }
+    int index = ftell(f) - PAGE_SIZE;
+    fclose(f);
+
+    return index;
 }

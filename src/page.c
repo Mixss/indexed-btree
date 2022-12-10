@@ -3,7 +3,7 @@
 
 struct page *page_init(struct page *p, int order)
 {
-    p = malloc( sizeof(*p) + sizeof(struct page_entry) * 2 * order );
+    p = malloc( PAGE_SIZE );
     p->records_on_page = 0;
 
     return p;
