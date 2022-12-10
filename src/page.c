@@ -1,17 +1,15 @@
 #include "page.h"
-#include "stdlib.h"
+#include <stdlib.h>
 
-void page_init(struct page *p, int order)
+struct page *page_init(struct page *p, int order)
 {
+    p = malloc( sizeof(*p) + sizeof(struct page_entry) * 2 * order );
     p->records_on_page = 0;
-    p->keys = malloc(2 * order * sizeof(int));
-    p->pages = malloc(2 * order * sizeof(struct page*));
-    p->address = malloc(2 * order * sizeof(void*));
+
+    return p;
 }
 
 void page_free(struct page *p)
 {
-    free(p->keys);
-    free(p->pages);
-    free(p->address);
+    free(p);
 }
