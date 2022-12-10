@@ -12,6 +12,9 @@ struct record
     int x;
 } __attribute__((packed)); 
 
+void record_set(struct record *rec, int id, int a0, int a1, int a2, int a3, int a4, int x);
+void record_set_with_array(struct record *rec, int id, int a[5], int x);
+
 /*fills record with zeros*/
 void zero_record(struct record* rec);
 

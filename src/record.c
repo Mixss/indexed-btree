@@ -28,3 +28,25 @@ bool is_null(struct record *rec)
 {
     return rec->id == -1 ? true : false;
 }
+
+void record_set_with_array(struct record *rec, int id, int a[5], int x)
+{
+    rec->id = id;
+    rec->a[0] = a[0];
+    rec->a[1] = a[1];
+    rec->a[2] = a[2];
+    rec->a[3] = a[3];
+    rec->a[4] = a[4];
+    rec->x = x;
+}
+
+void record_set(struct record *rec, int id, int a0, int a1, int a2, int a3, int a4, int x)
+{
+    rec->id = id;
+    rec->a[0] = a0;
+    rec->a[1] = a1;
+    rec->a[2] = a2;
+    rec->a[3] = a3;
+    rec->a[4] = a4;
+    rec->x = x;
+}
