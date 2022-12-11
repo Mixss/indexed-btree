@@ -101,8 +101,7 @@ long save_record(const char* records_filename, struct record *rec)
         return 1;
     }
 
-    int index = ftell(f) - sizeof(struct record);
-
+    int index = ftell(f)/sizeof(struct record) - 1;
     fclose(f);
 
     return index;
@@ -194,7 +193,7 @@ int save_page(const char* pages_filename, struct page *p, int order)
         printf("Failed to write page at the end of file\n");
         return 1;
     }
-    int index = ftell(f) - PAGE_SIZE;
+    int index = (ftell(f) - sizeof(struct metadata))/PAGE_SIZE - 1;
     fclose(f);
 
     return index;

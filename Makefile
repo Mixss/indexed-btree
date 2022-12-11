@@ -4,7 +4,7 @@ EXEC=program
 
 _OBJ = main.o record.o page.o btree.o file_reader.o
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
-FLAGS = -Wall -I$(IDIR) -g
+FLAGS = -Wall -I$(IDIR) -g 
 
 _DEPS = record.h page.h btree.h data.h file_reader.h
 DEPS = $(patsubst %,$(IDIR)/%,$(_DEPS))
