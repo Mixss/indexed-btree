@@ -22,5 +22,6 @@ struct page
 struct page *page_init(struct page *p, int order);
 void page_free(struct page *p);
 void set_entry(struct page *p, int entry_index, int key, int address_to_data, int other_page);
+void print_page_data(struct page *p);
 
 #endif
