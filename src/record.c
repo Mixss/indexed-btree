@@ -10,7 +10,7 @@ int get_record_sorting_value(struct record rec)
 
 void zero_record(struct record* rec)
 {
-    (*rec).id = -1;
+    (*rec).id = 0;
     (*rec).a[0] = 0;
     (*rec).a[1] = 0;
     (*rec).a[2] = 0;
@@ -26,7 +26,7 @@ void print_record(struct record* rec)
 
 bool is_null(struct record *rec)
 {
-    return rec->id == -1 ? true : false;
+    return (rec->id == 0 && rec->a[0] == 0 && rec->a[1] == 0 && rec->a[2] == 0 && rec->a[3] == 0 && rec->a[04] == 0 && rec->x == 0);
 }
 
 void record_set_with_array(struct record *rec, int id, int a[5], int x)
