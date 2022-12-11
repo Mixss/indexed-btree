@@ -1,4 +1,5 @@
 #include "file_reader.h"
+#include <stdlib.h>
 
 int create_files(const char* pages_filename, const char* records_filename, int order)
 {
@@ -6,7 +7,7 @@ int create_files(const char* pages_filename, const char* records_filename, int o
 
     struct metadata data;
     data.height = 1;
-    data.number_of_records = 0;
+    data.number_of_pages = 1;
     data.order = order;
     data.root_page_index = 0;
 
@@ -36,8 +37,9 @@ int set_metadata_height(const char* pages_filename, int height)
     FILE* f = fopen(pages_filename, "rb");
 
     struct metadata data;
+    fseek(f, 0 ,0);
 
-    if( fread(&data, sizeof(data), 1, f) < 1)
+    if( fread(&data, sizeof(struct metadata), 1, f) < 1)
     {
         printf("Failed to change metadata height\n");
         return 1;
@@ -47,10 +49,10 @@ int set_metadata_height(const char* pages_filename, int height)
 
     data.height = height;
 
-    f = fopen(pages_filename, "wb");
+    f = fopen(pages_filename, "rb+");
     fseek(f, 0, 0);
 
-    if( fwrite(&data, sizeof(data), 1, f) < 1)
+    if( fwrite(&data, sizeof(struct metadata), 1, f) < 1)
     {
         printf("Failed to change metadata height\n");
         return 2;
@@ -62,13 +64,14 @@ int set_metadata_height(const char* pages_filename, int height)
 
 }
 
-int set_metadata_number_of_records(const char* pages_filename, int n)
+int set_metadata_number_of_pages(const char* pages_filename, int n)
 {
     FILE* f = fopen(pages_filename, "rb");
 
     struct metadata data;
+    fseek(f, 0 ,0);
 
-    if( fread(&data, sizeof(data), 1, f) < 1)
+    if( fread(&data, sizeof(struct metadata), 1, f) < 1)
     {
         printf("Failed to change metadata height\n");
         return 1;
@@ -76,17 +79,16 @@ int set_metadata_number_of_records(const char* pages_filename, int n)
 
     fclose(f);
 
-    data.number_of_records = n;
+    data.number_of_pages = n;
 
-    f = fopen(pages_filename, "wb");
+    f = fopen(pages_filename, "rb+");
     fseek(f, 0, 0);
-
-    if( fwrite(&data, sizeof(data), 1, f) < 1)
+    int s = fwrite(&data, sizeof(struct metadata), 1, f);
+    if( s < 1)
     {
         printf("Failed to change metadata height\n");
         return 2;
     }
-
     fclose(f);
 
     return 0;
@@ -132,7 +134,7 @@ int load_record(const char* records_filename, struct record *rec, int index)
 
 int save_record_at(const char* records_filename, struct record *rec, int index)
 {
-    FILE* f = fopen(records_filename, "wb");
+    FILE* f = fopen(records_filename, "rb+");
     fseek(f, index * sizeof(struct record), 0);
     if(fwrite(rec, sizeof(struct record), 1, f) < 1)
     {
@@ -144,7 +146,7 @@ int save_record_at(const char* records_filename, struct record *rec, int index)
     return 0;
 }
 
-int get_number_of_records(const char* pages_filename)
+int get_number_of_pages(const char* pages_filename)
 {
     struct metadata data;
     FILE* f = fopen(pages_filename, "rb");
@@ -154,8 +156,7 @@ int get_number_of_records(const char* pages_filename)
         return 1;
     }
     fclose(f);
-
-    return 0;
+    return data.number_of_pages;
 }
 
 int read_page(const char* pages_filename, struct page *p, int index, int order)
@@ -173,7 +174,7 @@ int read_page(const char* pages_filename, struct page *p, int index, int order)
 
 int save_page_at(const char* pages_filename, struct page *p, int index, int order)
 {
-    FILE* f = fopen(pages_filename, "wb");
+    FILE* f = fopen(pages_filename, "rb+");
     fseek(f, sizeof(struct metadata) + (index * PAGE_SIZE), 0);
     if(fwrite(p, PAGE_SIZE, 1, f) < 1)
     {
@@ -208,6 +209,39 @@ int read_metadata(const char* pages_filename, struct metadata *data)
         printf("Failed to read metadata\n");
         return 1;
     }
+    fclose(f);
+
+    return 0;
+}
+
+int print_page_file(const char* pages_filename)
+{
+    FILE *f = fopen(pages_filename, "rb");
+
+    struct metadata data;
+    if( fread(&data, sizeof(struct metadata), 1, f) < 1)
+    {
+        printf("Failed to print page file metadata\n");
+        return 1;
+    }
+    int order = data.order;
+    struct page *p = page_init(p, order);
+
+    printf("Pages metadata:\n");
+    printf("order=%d\t height=%d\tpages=%d\troot_page_ind=%d\n", data.order, data.height, data.number_of_pages, data.root_page_index);
+
+    for(int i=0; i<data.number_of_pages; i++)
+    {
+        fseek(f, sizeof(struct metadata) + (i * PAGE_SIZE), 0);
+        if(fread(p, PAGE_SIZE, 1, f) < 1)
+        {
+            printf("Failed to read page at index %d\n", i);
+            return 2;
+        }
+        print_page_data(p);
+    }
+
+    free(p);
     fclose(f);
 
     return 0;

@@ -11,7 +11,7 @@ struct metadata
 {
     int height;
     int order;
-    int number_of_records;
+    int number_of_pages;
     int root_page_index;
 } __attribute__((packed));
 
@@ -20,7 +20,7 @@ int create_files(const char* pages_filename, const char* records_filename, int o
 // sets height of b-tree in metadata, returns 0 if successfull
 int set_metadata_height(const char* pages_filename, int height);
 // sets number_of_records of b-tree in metadata, returns 0 if successfull
-int set_metadata_number_of_records(const char* pages_filename, int n);
+int set_metadata_number_of_pages(const char* pages_filename, int n);
 
 // saves record only to records file and returns its index in the file
 long save_record(const char* records_filename, struct record *rec);
@@ -29,7 +29,7 @@ int load_record(const char* records_filename, struct record *rec, int index);
 // saves record at given index, returns 0 if successfull
 int save_record_at(const char* records_filename, struct record *rec, int index);
 // returns the number of records from metadata
-int get_number_of_records(const char* pages_filename);
+int get_number_of_pages(const char* pages_filename);
 
 // reads page from page file at given index, returns 0 if successfull
 int read_page(const char* pages_filename, struct page *p, int index, int order);
@@ -40,6 +40,8 @@ int save_page(const char* pages_filename, struct page *p, int order);
 
 // reads metadata, returns 0 if successfull
 int read_metadata(const char* pages_filename,struct metadata *data);
+// prints page file with all its data, returns 0 if successfull
+int print_page_file(const char* pages_filename);
 
 
 
