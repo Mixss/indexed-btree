@@ -6,9 +6,10 @@ struct btree
 {
     int order;
     int height;
-    struct page *root_page;
+    int root_page;
 } __attribute__((packed));
 
-void btree_init(struct btree *tree, int order);
+void print_tree(struct btree *tree, const char* pages_filename);
+void print_page_keys(struct page *p);
 
 #endif
