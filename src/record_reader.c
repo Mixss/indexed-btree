@@ -16,6 +16,7 @@ int record_write(const char* records_filename, struct record *rec)
     {
         fseek(f, -sizeof(struct block), SEEK_END);
         block_pos = ftell(f);
+        printf("BLOK: %d\n", block_pos);
         if( fread(b, sizeof(struct block), 1, f) < 1)
         {
             printf("Failed to read last block\n");
@@ -51,6 +52,11 @@ int record_write(const char* records_filename, struct record *rec)
     b->records[index] = *rec;
 
     // save block to the file
+    if(new_block == true)
+    {
+        fseek(f, 0, SEEK_END);
+        block_pos = ftell(f);
+    }
     printf("Zapisywanie bloku na: %d\n", block_pos);
     fseek(f, block_pos, 0);
     if( fwrite(b, sizeof(struct block), 1, f) < 1)
@@ -62,5 +68,28 @@ int record_write(const char* records_filename, struct record *rec)
     free(b);
     fclose(f);
 
-    return (block_pos / RECORDS_IN_BLOCK) + index;
+    return (block_pos / sizeof(struct block)) + index;
+}
+
+int record_read(const char* records_filename, struct record *rec, int index)
+{
+    FILE *f = fopen(records_filename, "rb");
+
+    int block_nr = (index / RECORDS_IN_BLOCK);
+    struct block b;
+
+    fseek(f, block_nr * sizeof(struct block), 0);
+
+    if( fread(&b, sizeof(struct block), 1, f) < 1)
+    {
+        printf("Failed to read block to read the record\n");
+        return 1;
+    }
+
+    int index_in_block = index % RECORDS_IN_BLOCK;
+    printf("Czytanie rekordu %d z bloku %d[%d]\n", index, block_nr, index_in_block);
+    *rec = b.records[index_in_block];
+
+    fclose(f);
+    return 0;
 }
