@@ -14,6 +14,8 @@ struct block
 int record_write(const char* records_filename, struct record *rec);
 // loads the record from file at given index, returns 0 if successfull
 int record_read(const char* records_filename, struct record *rec, int index);
+// prints all records from file as they are
+int print_record_file(const char* records_filename);
 
 
 #endif

@@ -93,3 +93,19 @@ int record_read(const char* records_filename, struct record *rec, int index)
     fclose(f);
     return 0;
 }
+
+int print_record_file(const char* records_filename)
+{
+    FILE *f = fopen(records_filename, "rb");
+    struct record rec;
+    printf("RECORDS FILE:\n");
+    while(fread(&rec, sizeof(struct record), 1, f) > 0)
+    {
+        if(is_null(&rec) == true)
+            printf("empty space (%ld bytes)\n", sizeof(rec));
+        else print_record(&rec);
+        
+    }
+
+    return 0;
+}
