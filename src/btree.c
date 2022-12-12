@@ -1,15 +1,46 @@
 #include "btree.h"
 #include "file_reader.h"
 #include "access_stats.h"
+#include "stack.h"
+#include <stdlib.h>
 
 void print_tree(struct btree *tree, const char* pages_filename)
 {
     printf("B-tree structure:\n\n");
     struct page *p = page_init(p, tree->order);
-    read_page(pages_filename, p, tree->root_page, tree->order);
-    printf("Page entries %d\n", p->records_on_page);
-    print_page_keys(p);
-    printf("\n");
+    //read_page(pages_filename, p, tree->root_page, tree->order);
+
+    struct stack st;
+    struct stack st2;
+    stack_clear(&st);
+    stack_clear(&st2);
+    
+    stack_push(&st, tree->root_page);
+
+    while(stack_len(&st) > 0)
+    {
+        while(stack_len(&st) > 0)
+        {
+            int ind = stack_pop(&st);
+            read_page(pages_filename, p, ind, tree->order);
+
+            print_page_keys(p);
+
+            for(int i=0; i<p->records_on_page; i++)
+            {
+                if(p->entries[i].other_page != NIL)
+                    stack_push(&st2, p->entries[i].other_page);
+            }
+            if(p->next_page != NIL)
+                stack_push(&st2, p->next_page);
+                printf("  ");
+        }
+        st = st2;
+        stack_clear(&st2);    
+        printf("\n\n");
+    }
+    
+    free(p);
 }
 
 void print_page_keys(struct page *p)
