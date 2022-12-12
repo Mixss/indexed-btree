@@ -8,6 +8,7 @@ struct page *page_init(struct page *p, int order)
     p->records_on_page = 0;
     p->next_page = NIL;
     p->parent_page = NIL;
+    p->is_leaf = true;
     return p;
 }
 
