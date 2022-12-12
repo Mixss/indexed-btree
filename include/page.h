@@ -6,7 +6,7 @@
 
 struct page_entry
 {
-    int other_page;
+    int other_page; //index in the page_file of the page containing lesser keys
     int key;
     int address_to_data;
 } __attribute__((packed));
@@ -15,7 +15,7 @@ struct page
 {
     int records_on_page;
     int parent_page;
-    int next_page;
+    int next_page; //index in the page_file of the page containing greater keys than last record in this page
     struct page_entry entries[];
 } __attribute__((packed)); 
 
