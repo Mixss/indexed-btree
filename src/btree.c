@@ -21,7 +21,7 @@ void print_tree(struct btree *tree, const char* pages_filename)
     {
         while(stack_len(&st) > 0)
         {
-            int ind = stack_pop(&st);
+            int ind = stack_pop_base(&st);
             read_page(pages_filename, p, ind, tree->order);
 
             print_page_keys(p);
