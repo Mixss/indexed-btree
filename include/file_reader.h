@@ -21,13 +21,6 @@ int create_files(const char* pages_filename, const char* records_filename, int o
 int set_metadata_height(const char* pages_filename, int height);
 // sets number_of_records of b-tree in metadata, returns 0 if successfull
 int set_metadata_number_of_pages(const char* pages_filename, int n);
-
-// saves record only to records file and returns its index in the file
-long save_record(const char* records_filename, struct record *rec);
-// loads record from file at given index, returns 0 if successfull
-int load_record(const char* records_filename, struct record *rec, int index);
-// saves record at given index, returns 0 if successfull
-int save_record_at(const char* records_filename, struct record *rec, int index);
 // returns the number of records from metadata
 int get_number_of_pages(const char* pages_filename);
 

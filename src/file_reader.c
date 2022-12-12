@@ -94,58 +94,6 @@ int set_metadata_number_of_pages(const char* pages_filename, int n)
     return 0;
 }
 
-long save_record(const char* records_filename, struct record *rec)
-{
-    FILE* f = fopen(records_filename, "ab");
-    if(fwrite(rec, sizeof(struct record), 1, f) < 1)
-    {
-        printf("Failed to append new record with id: %d\n", rec->id);
-        return 1;
-    }
-
-    int index = ftell(f)/sizeof(struct record) - 1;
-    fclose(f);
-
-    return index;
-}
-
-int load_record(const char* records_filename, struct record *rec, int index)
-{
-    FILE* f = fopen(records_filename, "rb");
-    if(f == NULL)
-    {
-        printf("Failed to load record (open file)\n");
-        return 1;
-    }
-
-    fseek(f, index * sizeof(struct record), SEEK_SET);
-
-    if( fread(rec, sizeof(struct record), 1, f) < 1)
-    {
-        printf("Failed to read record at index: %d\n", index);
-        fclose(f);
-        return 2;
-    }
-
-    fclose(f);
-
-    return 0;
-}
-
-int save_record_at(const char* records_filename, struct record *rec, int index)
-{
-    FILE* f = fopen(records_filename, "rb+");
-    fseek(f, index * sizeof(struct record), 0);
-    if(fwrite(rec, sizeof(struct record), 1, f) < 1)
-    {
-        printf("Failed to append new record with id: %d\n", rec->id);
-        return 1;
-    }
-    fclose(f);
-
-    return 0;
-}
-
 int get_number_of_pages(const char* pages_filename)
 {
     struct metadata data;
