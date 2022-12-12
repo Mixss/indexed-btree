@@ -106,3 +106,57 @@ bool btree_search(const char* pages_filename, struct btree *tree, int key, int *
     free(p);
     return found;
 }
+
+int btree_insert(const char* pages_filename, const char* records_filename, struct btree *tree, struct record *rec)
+{
+    int key = rec->id;
+    int data_address;
+    if (btree_search(pages_filename, tree, key, &data_address) == true)
+    {
+        printf("Insert: given key is already present\n");
+        return 1;
+    }
+
+    // find page that will be a candidate to insert key in it
+
+    int order = tree->order;
+    struct page *p = page_init(p, order);
+
+    int page_index = tree->root_page;
+
+    while(1)
+    {
+        read_page(pages_filename, p, page_index, order);
+        add_disk_read(1);
+
+        if(p->is_leaf == true)
+            break;
+        
+        // lesser than the smallest
+        if(key < p->entries[0].key)
+        {
+            page_index = p->entries[0].other_page;
+            continue;
+        }
+        // greater than the biggest
+        else if(key > p->entries[p->records_on_page - 1].key)
+        {
+            page_index = p->next_page;
+            continue;
+        }
+        // between
+        for(int i=1; i<p->records_on_page; i++)
+        {
+            if(key < p->entries[i].key)
+            {
+                page_index = p->entries[i].other_page;
+                break;
+            }
+        }
+    }
+
+    printf("Record could fit in %d\n", page_index);
+
+    free(p);
+    return 0;
+}
