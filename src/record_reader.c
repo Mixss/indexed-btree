@@ -16,7 +16,6 @@ int record_write(const char* records_filename, struct record *rec)
     {
         fseek(f, -sizeof(struct block), SEEK_END);
         block_pos = ftell(f);
-        printf("BLOK: %d\n", block_pos);
         if( fread(b, sizeof(struct block), 1, f) < 1)
         {
             printf("Failed to read last block\n");
@@ -57,7 +56,6 @@ int record_write(const char* records_filename, struct record *rec)
         fseek(f, 0, SEEK_END);
         block_pos = ftell(f);
     }
-    printf("Zapisywanie bloku na: %d\n", block_pos);
     fseek(f, block_pos, 0);
     if( fwrite(b, sizeof(struct block), 1, f) < 1)
     {
