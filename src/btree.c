@@ -188,6 +188,49 @@ int insert_find_page_candidate(const char* pages_filename, struct btree *tree, s
     return page_index;
 }
 
+void insert_find_siblings(const char* pages_filename, struct btree *tree, struct page *p, int *left_sibling_index, int *right_sibling_index)
+{
+    *left_sibling_index = NIL;
+    int left_sibling_index_in_root_page = 0;
+    *right_sibling_index = NIL;
+
+    int order = tree->order;
+
+    struct page *root = page_init(root, order);
+
+    read_page(pages_filename, root, p->parent_page, order);
+
+    // iterate through root page to find left sibling
+    for(int i=0; i<root->records_on_page; i++)
+    {
+        if(root->entries[i].key < p->entries[0].key) // it doesn't matter with wich key we compare
+        {
+            *left_sibling_index = root->entries->other_page;
+            left_sibling_index_in_root_page = i;
+            break;
+        }
+    }
+    // if left s. index is still NIL it means that there is no left sibling
+
+    printf("Lewy sąsiad: %d\n", *left_sibling_index);
+
+    // find right sibling
+
+    if(root->entries[root->records_on_page-1].key > p->entries[0].key) // if that is false it means that there is no right sibling
+    {
+        if(*left_sibling_index == -1) // if there is no left sibling we can set this variable that it'll be correct in next computations
+            left_sibling_index_in_root_page = -1;
+
+        if(left_sibling_index_in_root_page+2 >= root->records_on_page) // right sibling is in next_page
+            *right_sibling_index = root->next_page;
+        else *right_sibling_index = root->entries[left_sibling_index_in_root_page+2].other_page;
+    }
+
+    printf("Prawy sąsiad: %d\n", *right_sibling_index);
+
+    free(root);
+}
+
 int btree_insert(const char* pages_filename, const char* records_filename, struct btree *tree, struct record *rec)
 {
     int key = rec->id;
@@ -205,8 +248,28 @@ int btree_insert(const char* pages_filename, const char* records_filename, struc
 
     int page_index = insert_find_page_candidate(pages_filename, tree, p, key);
     
+    // check if basic insertion to the page is possible
+    if(p->records_on_page < tree->order * 2) // there is vacancy in the page
+    {
+        insert_in_page(pages_filename, records_filename, rec, p, tree, page_index);
+        goto end;
+    }
 
-    insert_in_page(pages_filename, records_filename, rec, p, tree, page_index);
+    // check if compensation is possible
+
+    // FIND SIBLINGS
+    struct page *left_sibling = page_init(left_sibling, order);
+    struct page *right_sibling = page_init(right_sibling, order);
+
+    int left_sibling_index;
+    int right_sibling_index;
+
+    insert_find_siblings(pages_filename, tree, p, &left_sibling_index, &right_sibling_index);
+
+    free(left_sibling);
+    free(right_sibling);
+
+    end:
 
     free(p);
     return 0;
