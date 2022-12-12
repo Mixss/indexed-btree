@@ -186,6 +186,7 @@ int print_page_file(const char* pages_filename)
             printf("Failed to read page at index %d\n", i);
             return 2;
         }
+        printf("Page %d: ", i);
         print_page_data(p);
     }
 

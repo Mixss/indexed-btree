@@ -25,9 +25,9 @@ void set_entry(struct page *p, int entry_index, int key, int address_to_data, in
 
 void print_page_data(struct page *p)
 {
-    printf("Parent ind.: %d\tAfter ind.: %d\tRecords: %d\n", p->parent_page, p->next_page, p->records_on_page);
+    printf("Parent ind.: %d\tGreater keys ind.: %d\tRecords: %d\n", p->parent_page, p->next_page, p->records_on_page);
     for(int i=0; i<p->records_on_page; i++)
     {
-        printf("\tPage entry: key=%d\taddr=%dnext_page=%d\n", p->entries[i].key, p->entries[i].address_to_data, p->entries[i].other_page);
+        printf("\tPage entry: key=%d\taddr=%d\tlesser_keys_page=%d\n", p->entries[i].key, p->entries[i].address_to_data, p->entries[i].other_page);
     }
 }

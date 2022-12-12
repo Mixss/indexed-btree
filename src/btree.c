@@ -32,7 +32,6 @@ bool btree_search(const char* pages_filename, struct btree *tree, int key, int *
 
     while(1)
     {
-        printf("Test strony %d\n", page_index);
         if(page_index == NIL)
             break;
         
@@ -50,7 +49,6 @@ bool btree_search(const char* pages_filename, struct btree *tree, int key, int *
         {
             if(key == p->entries[i].key)
             {
-                printf("%d found!\n", key);
                 found = true;
                 *data_address = p->entries[i].address_to_data;
                 break;
