@@ -149,22 +149,10 @@ int insert_in_page(const char* pages_filename, const char* records_filename, str
     return 0;
 }
 
-int btree_insert(const char* pages_filename, const char* records_filename, struct btree *tree, struct record *rec)
+int insert_find_page_candidate(const char* pages_filename, struct btree *tree, struct page *p, int key)
 {
-    int key = rec->id;
-    int data_address;
-    if (btree_search(pages_filename, tree, key, &data_address) == true)
-    {
-        printf("Insert: given key is already present\n");
-        return 1;
-    }
-
-    // find page that will be a candidate to insert key in it
-
-    int order = tree->order;
-    struct page *p = page_init(p, order);
-
     int page_index = tree->root_page;
+    int order = tree->order;
 
     while(1)
     {
@@ -196,6 +184,27 @@ int btree_insert(const char* pages_filename, const char* records_filename, struc
             }
         }
     }
+
+    return page_index;
+}
+
+int btree_insert(const char* pages_filename, const char* records_filename, struct btree *tree, struct record *rec)
+{
+    int key = rec->id;
+    int data_address;
+    if (btree_search(pages_filename, tree, key, &data_address) == true)
+    {
+        printf("Insert: given key is already present\n");
+        return 1;
+    }
+
+    // find page that will be a candidate to insert key in it
+
+    int order = tree->order;
+    struct page *p = page_init(p, order);
+
+    int page_index = insert_find_page_candidate(pages_filename, tree, p, key);
+    
 
     insert_in_page(pages_filename, records_filename, rec, p, tree, page_index);
 
