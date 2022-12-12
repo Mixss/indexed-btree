@@ -3,6 +3,7 @@
 #include "access_stats.h"
 #include "stack.h"
 #include <stdlib.h>
+#include "record_reader.h"
 
 void print_tree(struct btree *tree, const char* pages_filename)
 {
@@ -107,6 +108,47 @@ bool btree_search(const char* pages_filename, struct btree *tree, int key, int *
     return found;
 }
 
+int insert_in_page(const char* pages_filename, const char* records_filename, struct record *rec, struct page *p, struct btree *tree, int page_index)
+{
+    if(p->records_on_page == tree->order * 2)
+    {
+        printf("Tried to insert key to full page\n");
+        return 1;
+    }
+
+    int insert_pos = -1;
+
+    for(int i=0; i<p->records_on_page; i++)
+    {
+        if(rec->id < p->entries[i].key) // put the record before this entry
+        {
+            insert_pos = i;
+            break;
+        }
+    }
+    if(insert_pos == -1)
+        insert_pos = p->records_on_page;
+
+    for(int i=p->records_on_page; i>=insert_pos; i--)
+    {
+        p->entries[i] = p->entries[i-1];
+    }
+
+    int ind = record_write(records_filename, &rec);
+
+    struct page_entry pe;
+    pe.key = rec->id;
+    pe.address_to_data = ind;
+    pe.other_page = NIL;
+
+    p->entries[insert_pos] = pe;
+    p->records_on_page = p->records_on_page + 1;
+
+    save_page_at(pages_filename, p, page_index, tree->order);
+
+    return 0;
+}
+
 int btree_insert(const char* pages_filename, const char* records_filename, struct btree *tree, struct record *rec)
 {
     int key = rec->id;
@@ -155,7 +197,7 @@ int btree_insert(const char* pages_filename, const char* records_filename, struc
         }
     }
 
-    printf("Record could fit in %d\n", page_index);
+    insert_in_page(pages_filename, records_filename, rec, p, tree, page_index);
 
     free(p);
     return 0;
