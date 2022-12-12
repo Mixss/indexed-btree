@@ -66,7 +66,7 @@ int record_write(const char* records_filename, struct record *rec)
     free(b);
     fclose(f);
 
-    return (block_pos / sizeof(struct block)) + index;
+    return (block_pos / sizeof(struct block)) * RECORDS_IN_BLOCK + index;
 }
 
 int record_read(const char* records_filename, struct record *rec, int index)
