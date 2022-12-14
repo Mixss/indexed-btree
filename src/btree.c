@@ -221,8 +221,122 @@ void insert_find_siblings(const char* pages_filename, struct btree *tree, struct
             *right_sibling_index = parent_page->next_page;
         else *right_sibling_index = parent_page->entries[left_sibling_index_in_root_page+2].other_page;
     }
-    printf("L %d P %d R %d\n", *left_sibling_index, *right_sibling_index, left_sibling_index_in_root_page);
-    // find parent entry
+}
+
+void insert_compensation(const char* pages_filename, const char* records_filename, int left_compensation, int left_sibling_index, int right_sibling_index, struct page *left_sibling, struct page *right_sibling, int page_index, struct page *parent_page, struct record *rec, struct btree *tree, struct page *p)
+{
+    //get all records that will take part in compensation
+        // we want only one variable to operate on sibling
+        int sibling_index;
+        struct page **sibling;
+
+        if(left_compensation)
+        {
+            sibling_index = left_sibling_index;
+            sibling = &left_sibling;
+        }
+        else
+        {
+            sibling_index = right_sibling_index;
+            sibling = &right_sibling;
+        }
+
+        // sum of records on both pages, parent page and new record page
+        int number_of_records = (*sibling)->records_on_page + p->records_on_page + 2; 
+
+        struct page_entry *compensation_entries = calloc(number_of_records, sizeof(struct page_entry));
+
+        // fill the array
+        int sibling_offset = left_compensation == true ? 0 : p->records_on_page + 1;
+        int compensation_count = 0;
+
+        int page_offset = left_compensation == true ? (*sibling)->records_on_page + 1 : 0;
+
+        for(int i=0; i<(*sibling)->records_on_page; i++)
+            compensation_entries[i+sibling_offset] = (*sibling)->entries[i];
+
+        for(int i=0; i<p->records_on_page; i++, compensation_count++)
+            compensation_entries[i + page_offset] = p->entries[i];
+
+        //find parent entry
+        int parent_entry_cmp_index = left_compensation == true ? (*sibling)->records_on_page : p->records_on_page;
+        int left_parent_key = compensation_entries[parent_entry_cmp_index-1].key;
+        int parent_entry_index_in_parent_page;
+        struct page_entry parent_entry;
+
+        for(int i=0; i<parent_page->records_on_page; i++)
+        {
+            if(parent_page->entries[i].key > left_parent_key)
+            {
+                parent_entry = parent_page->entries[i];
+                parent_entry_index_in_parent_page = i;
+                break;
+            }
+        }
+        // we have to clear other page info, because parent entry will go to the leaf page
+        int parent_entry_other_page = parent_entry.other_page;
+        parent_entry.other_page = NIL;
+
+        compensation_entries[parent_entry_cmp_index] = parent_entry;
+        // save new record to disk
+        struct page_entry new_record_entry;
+        new_record_entry.address_to_data = record_write(records_filename, rec);
+        new_record_entry.key = rec->id;
+        new_record_entry.other_page = NIL;
+
+        // place new entry in array, finding place is trivial, array is sorted;
+        for(int i=number_of_records-1; i>0; i--)
+        {
+            if(compensation_entries[i-1].key < rec->id)
+            {
+                for(int j=number_of_records - 2; j>=i; j--)
+                {
+                    compensation_entries[j + 1] = compensation_entries[j];
+                }
+
+                compensation_entries[i] = new_record_entry;
+                break;
+            }
+        }
+
+        int new_parent_entry_index = number_of_records / 2;
+
+        parent_entry = compensation_entries[new_parent_entry_index];
+        parent_entry.other_page = parent_entry_other_page;
+
+        // put new data to pages
+        (*sibling)->records_on_page = 0;
+        p->records_on_page = 0;
+
+        parent_page->entries[parent_entry_index_in_parent_page] = parent_entry;
+
+        int i;
+        if(left_compensation)
+        {
+            for(i=0; i<number_of_records / 2; i++)
+                (*sibling)->entries[i] = compensation_entries[i];
+            (*sibling)->records_on_page = i;
+            for(i=0; i<number_of_records - new_parent_entry_index - 1; i++)
+                p->entries[i] = compensation_entries[new_parent_entry_index + i + 1];
+            p->records_on_page = i;
+        }
+        else
+        {
+            for(i=0; i<number_of_records / 2; i++)
+                p->entries[i] = compensation_entries[i];
+            p->records_on_page = i;
+            for(i=0; i<number_of_records - new_parent_entry_index - 1; i++)
+                (*sibling)->entries[i] = compensation_entries[new_parent_entry_index + i + 1];
+            (*sibling)->records_on_page = i;
+        }
+        
+        //save updated pages
+        save_page_at(pages_filename, *sibling, sibling_index, tree->order);
+        save_page_at(pages_filename, p, page_index, tree->order);
+        save_page_at(pages_filename, parent_page, p->parent_page, tree->order);
+
+
+        free(compensation_entries);
 }
 
 int btree_insert(const char* pages_filename, const char* records_filename, struct btree *tree, struct record *rec)
@@ -280,90 +394,7 @@ int btree_insert(const char* pages_filename, const char* records_filename, struc
     // COMPENSATION
     
     if(left_compensation || right_compensation)
-    {
-        //get all records that will take part in compensation
-        // we want only one variable to operate on sibling
-        int sibling_index;
-        struct page **sibling;
-
-        if(left_compensation)
-        {
-            sibling_index = left_sibling_index;
-            sibling = &left_sibling;
-        }
-        else
-        {
-            sibling_index = right_sibling_index;
-            sibling = &right_sibling;
-        }
-
-        // sum of records on both pages, parent page and new record page
-        int number_of_records = (*sibling)->records_on_page + p->records_on_page + 2; 
-
-        struct page_entry *compensation_entries = calloc(number_of_records, sizeof(struct page_entry));
-
-        // fill the array
-        int sibling_offset = left_compensation == true ? 0 : p->records_on_page + 1;
-        int compensation_count = 0;
-
-        int page_offset = left_compensation == true ? (*sibling)->records_on_page + 1 : 0;
-
-        for(int i=0; i<(*sibling)->records_on_page; i++)
-            compensation_entries[i+sibling_offset] = (*sibling)->entries[i];
-
-        for(int i=0; i<p->records_on_page; i++, compensation_count++)
-            compensation_entries[i + page_offset] = p->entries[i];
-
-        //find parent entry
-        int parent_entry_cmp_index = left_compensation == true ? (*sibling)->records_on_page : p->records_on_page;
-        int left_parent_key = compensation_entries[parent_entry_cmp_index-1].key;
-        struct page_entry parent_entry;
-
-        for(int i=0; i<parent_page->records_on_page; i++)
-        {
-            if(parent_page->entries[i].key > left_parent_key)
-            {
-                parent_entry = parent_page->entries[i];
-                break;
-            }
-        }
-        // we have to clear other page info, because parent entry will go to the leaf page
-        int parent_entry_other_page = parent_entry.other_page;
-        parent_entry.other_page = NIL;
-
-        compensation_entries[parent_entry_cmp_index] = parent_entry;
-        // save new record to disk
-        struct page_entry new_record_entry;
-        new_record_entry.address_to_data = record_write(records_filename, rec);
-        new_record_entry.key = rec->id;
-        new_record_entry.other_page = NIL;
-
-        // place new entry in array, finding place is trivial, array is sorted;
-        for(int i=number_of_records-1; i>0; i--)
-        {
-            if(compensation_entries[i-1].key < rec->id)
-            {
-                for(int j=number_of_records - 2; j>=i; j--)
-                {
-                    compensation_entries[j + 1] = compensation_entries[j];
-                }
-
-                compensation_entries[i] = new_record_entry;
-                break;
-            }
-        }
-
-
-        printf("Compensation array (%s):\n", left_compensation ? "L" : "P");
-        for(int i=0; i<number_of_records; i++)
-        {
-            printf("%d ", compensation_entries[i].key);
-        }
-        printf("\n");
-
-
-        free(compensation_entries);
-    }
+        insert_compensation(pages_filename, records_filename, left_compensation, left_sibling_index, right_sibling_index, left_sibling, right_sibling, page_index, parent_page, rec, tree, p);
    
 
     printf("SPLIT!\n");
