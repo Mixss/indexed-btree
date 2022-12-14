@@ -4,6 +4,7 @@
 #include "stack.h"
 #include <stdlib.h>
 #include "record_reader.h"
+#include "buffer.h"
 
 void print_tree(struct btree *tree, const char* pages_filename)
 {
@@ -134,7 +135,7 @@ int insert_in_page(const char* pages_filename, const char* records_filename, str
         p->entries[i] = p->entries[i-1];
     }
 
-    int ind = record_write(records_filename, &rec);
+    int ind = record_write(records_filename, rec);
 
     struct page_entry pe;
     pe.key = rec->id;
@@ -149,19 +150,27 @@ int insert_in_page(const char* pages_filename, const char* records_filename, str
     return 0;
 }
 
-int insert_find_page_candidate(const char* pages_filename, struct btree *tree, struct page *p, int key)
+int insert_find_page_candidate(const char* pages_filename, struct btree *tree, struct page *page_candidate, int key, struct page_buffer *buffer)
 {
     int page_index = tree->root_page;
     int order = tree->order;
+    page_buffer_init(buffer);
+    printf("KURWA\n");
 
     while(1)
     {
+        struct page *p = page_init(p, order);
         read_page(pages_filename, p, page_index, order);
         add_disk_read(1);
 
+        page_buffer_add_element(buffer, &p);
+
         if(p->is_leaf == true)
+        {
+            page_copy(p, page_candidate);
             break;
-        
+        }
+            
         // lesser than the smallest
         if(key < p->entries[0].key)
         {
@@ -179,7 +188,7 @@ int insert_find_page_candidate(const char* pages_filename, struct btree *tree, s
         {
             if(key < p->entries[i].key)
             {
-                page_index = p->entries[i].other_page;
+                page_index = p->entries[i].other_page;       
                 break;
             }
         }
@@ -353,8 +362,9 @@ int btree_insert(const char* pages_filename, const char* records_filename, struc
 
     int order = tree->order;
     struct page *p = page_init(p, order);
+    struct page_buffer buffer;
 
-    int page_index = insert_find_page_candidate(pages_filename, tree, p, key);
+    int page_index = insert_find_page_candidate(pages_filename, tree, p, key, &buffer);
     
     // check if basic insertion to the page is possible
     if(p->records_on_page < tree->order * 2) // there is vacancy in the page

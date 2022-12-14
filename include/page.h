@@ -27,4 +27,9 @@ void page_free(struct page *p);
 void set_entry(struct page *p, int entry_index, int key, int address_to_data, int other_page);
 void print_page_data(struct page *p);
 
+void page_set_array_at(struct page **array, int index, struct page *p, int order);
+void page_get_array_at(struct page **array, int index, struct page *p, int order);
+
+void page_copy(struct page *from, struct page *to);
+
 #endif

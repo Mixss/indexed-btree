@@ -32,3 +32,26 @@ void print_page_data(struct page *p)
         printf("\tPage entry: key=%d\taddr=%d\tlesser_keys_page=%d\n", p->entries[i].key, p->entries[i].address_to_data, p->entries[i].other_page);
     }
 }
+
+void page_set_array_at(struct page **array, int index, struct page *p, int order)
+{
+    struct page *ptr = (array + (index * PAGE_SIZE));
+    ptr = p;
+}
+
+void page_get_array_at(struct page **array, int index, struct page *p, int order)
+{
+    p = (struct page*)(array + (index * PAGE_SIZE));
+}
+
+void page_copy(struct page *from, struct page *to)
+{
+    to->is_leaf = from->is_leaf;
+    to->next_page = from->next_page;
+    to->parent_page = from->parent_page;
+    to->records_on_page = from->records_on_page;
+    for(int i=0; i<to->records_on_page; i++)
+    {
+        to->entries[i] = from->entries[i];
+    }
+}
