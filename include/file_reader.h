@@ -24,6 +24,8 @@ int set_metadata_number_of_pages(const char* pages_filename, int n);
 // returns the number of records from metadata
 int get_number_of_pages(const char* pages_filename);
 
+int set_metadata_root_index(const char* pages_filename, int index);
+
 // reads page from page file at given index, returns 0 if successfull
 int read_page(const char* pages_filename, struct page *p, int index, int order);
 // saves the page at the index given, returns 0 if successfull

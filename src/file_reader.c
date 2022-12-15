@@ -195,3 +195,34 @@ int print_page_file(const char* pages_filename)
 
     return 0;
 }
+
+int set_metadata_root_index(const char* pages_filename, int index)
+{
+    FILE* f = fopen(pages_filename, "rb");
+
+    struct metadata data;
+    fseek(f, 0 ,0);
+
+    if( fread(&data, sizeof(struct metadata), 1, f) < 1)
+    {
+        printf("Failed to change metadata root\n");
+        return 1;
+    }
+
+    fclose(f);
+
+    data.root_page_index = index;
+
+    f = fopen(pages_filename, "rb+");
+    fseek(f, 0, 0);
+
+    if( fwrite(&data, sizeof(struct metadata), 1, f) < 1)
+    {
+        printf("Failed to change metadata root\n");
+        return 2;
+    }
+
+    fclose(f);
+
+    return 0;
+}

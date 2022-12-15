@@ -20,4 +20,6 @@ bool btree_search(const char* pages_filename, struct btree *tree, int key, int *
 // saves given record in records file and indexes it in pages file, returns 0 if successfull
 int btree_insert(const char* pages_filename, const char* records_filename, struct btree *tree, struct record *rec);
 
+int btree_init(const char* pages_filename, const char* records_filename, int order);
+
 #endif
