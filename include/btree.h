@@ -4,6 +4,8 @@
 #include <stdbool.h>
 #include "record.h"
 
+#define NEXT_PAGE_INDEX -2
+
 struct btree
 {
     int order;

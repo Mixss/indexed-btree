@@ -79,7 +79,7 @@ int set_metadata_number_of_pages(const char* pages_filename, int n)
 
     fclose(f);
 
-    data.number_of_pages = n;
+    data.number_of_pages = data.number_of_pages + n;
 
     f = fopen(pages_filename, "rb+");
     fseek(f, 0, 0);

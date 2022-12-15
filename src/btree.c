@@ -155,7 +155,6 @@ int insert_find_page_candidate(const char* pages_filename, struct btree *tree, s
     int page_index = tree->root_page;
     int order = tree->order;
     page_buffer_init(buffer);
-    printf("KURWA\n");
 
     while(1)
     {
@@ -348,6 +347,54 @@ void insert_compensation(const char* pages_filename, const char* records_filenam
         free(compensation_entries);
 }
 
+int insert_entry_in_page(const char* pages_filename, struct page_entry *entry, struct page *p, struct btree *tree, int page_index)
+{
+    if(p->records_on_page == tree->order * 2)
+    {
+        printf("Tried to insert entry to full page\n");
+        return 1;
+    }
+
+    int insert_pos = -1;
+
+    for(int i=0; i<p->records_on_page; i++)
+    {
+        if(entry->key < p->entries[i].key) // put the record before this entry
+        {
+            insert_pos = i;
+            break;
+        }
+    }
+    if(insert_pos == -1)
+        insert_pos = p->records_on_page;
+
+    for(int i=p->records_on_page; i>=insert_pos; i--)
+    {
+        p->entries[i] = p->entries[i-1];
+    }
+
+    p->entries[insert_pos] = *entry;
+    p->records_on_page = p->records_on_page + 1;
+
+    save_page_at(pages_filename, p, page_index, tree->order);
+
+    return 0;
+}
+
+int get_index_in_parent_page(struct page *parent, struct page *p)
+{
+    int key = p->entries[0].key; // any key on the page will do
+
+    for(int i=0; i<parent->records_on_page; i++)
+    {
+        if(key < parent->entries[0].key) // this is the spot
+        {
+            return i;
+        }
+    }
+    return NEXT_PAGE_INDEX;
+}
+
 int btree_insert(const char* pages_filename, const char* records_filename, struct btree *tree, struct record *rec)
 {
     int key = rec->id;
@@ -404,14 +451,78 @@ int btree_insert(const char* pages_filename, const char* records_filename, struc
     // COMPENSATION
     
     if(left_compensation || right_compensation)
+    {
         insert_compensation(pages_filename, records_filename, left_compensation, left_sibling_index, right_sibling_index, left_sibling, right_sibling, page_index, parent_page, rec, tree, p);
-   
-
+        goto end_cmp;
+    }
+        
     printf("SPLIT!\n");
+    int old_entry_index_in_parent = get_index_in_parent_page(parent_page, p);
+    struct page_entry new_entry;
+    new_entry.address_to_data = record_write(records_filename, rec);
+    new_entry.key = rec->id;
+    new_entry.other_page = NIL;
+
+    int entries_size = p->records_on_page + 1;
+    struct page_entry *entries = calloc(entries_size, sizeof(struct page_entry)); 
     
+    int i=0;
+    bool inserted = false;
+    for(int j=0; j<entries_size; i++, j++)
+    {
+        if(inserted || new_entry.key > p->entries[i].key) 
+        {
+            entries[j] = p->entries[i];
+        }
+        else    // put new entry here
+        {
+            entries[j] = new_entry;
+            inserted = true;
+            i--;
+        }
+    }
 
+    int entry_to_parent_index = entries_size / 2;
+    
+    struct page *new_page = page_init(new_page, tree->order);
+
+    p->records_on_page = 0;
+    int ent_counter = 0;
+
+    for(int i=0; i<entries_size / 2; i++)
+    {
+        p->entries[i] = entries[ent_counter];
+        ent_counter++;
+        p->records_on_page = p->records_on_page + 1;
+    }
+    ent_counter++;
+    entries[entry_to_parent_index].other_page = page_index;
+
+    for(int i=0; i<entries_size / 2; i++)
+    {
+        new_page->entries[i] = entries[ent_counter];
+        ent_counter++;
+        new_page->records_on_page = new_page->records_on_page + 1;
+    }
+
+    int new_page_index = save_page(pages_filename, new_page, tree->order);
+    set_metadata_number_of_pages(pages_filename, 1);
+    if(old_entry_index_in_parent != NEXT_PAGE_INDEX)
+    {
+        parent_page->entries[old_entry_index_in_parent].other_page = new_page_index;
+    }
+    else
+    {
+        parent_page->next_page = new_page_index;
+    }
+    
+    insert_entry_in_page(pages_filename, &entries[entry_to_parent_index], parent_page, tree, p->parent_page);
+    save_page_at(pages_filename, p, page_index, tree->order);
+
+    free(entries);
+    free(new_page);
+    
     end_cmp:
-
     free(parent_page);
     free(left_sibling);
     free(right_sibling);
