@@ -124,6 +124,7 @@ int save_page_at(const char* pages_filename, struct page *p, int index, int orde
 {
     FILE* f = fopen(pages_filename, "rb+");
     fseek(f, sizeof(struct metadata) + (index * PAGE_SIZE), 0);
+    p->address = index;
     if(fwrite(p, PAGE_SIZE, 1, f) < 1)
     {
         printf("Failed to write page at index %d\n", index);
