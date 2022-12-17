@@ -22,4 +22,6 @@ int btree_insert(const char* pages_filename, const char* records_filename, struc
 
 int btree_init(const char* pages_filename, const char* records_filename, int order, struct btree *tree);
 
+void traverse_tree(const char* pages_filename, const char* records_filename, struct btree *tree);
+
 #endif

@@ -54,6 +54,10 @@ void text_mode(const char* pages_filename, const char* records_filename, struct 
         {
             print_record_file(records_filename);
         }
+        else if(command == 't')
+        {
+            traverse_tree(pages_filename, records_filename, tree);
+        }
         else if(command == 's')
         {
             set_disk_reads(0);
@@ -112,6 +116,10 @@ void interactive_mode(const char* pages_filename, const char* records_filename, 
         else if(command == 'r')
         {
             print_record_file(records_filename);
+        }
+        else if(command == 't')
+        {
+            traverse_tree(pages_filename, records_filename, tree);
         }
         else if(command == 's')
         {

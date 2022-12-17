@@ -106,6 +106,7 @@ int insert_in_page(const char* pages_filename, const char* records_filename, str
     p->records_on_page = p->records_on_page + 1;
 
     save_page_at(pages_filename, p, page_index, tree->order);
+    add_disk_write(1);
 
     return 0;
 }
@@ -164,6 +165,7 @@ void insert_find_siblings(const char* pages_filename, struct btree *tree, struct
     int order = tree->order;
 
     read_page(pages_filename, parent_page, p->parent_page, order);
+    add_disk_read(1);
 
     // iterate through root page to find left sibling
     for(int i=parent_page->records_on_page-1; i>=0; i--)
@@ -312,6 +314,7 @@ void insert_compensation(const char* pages_filename, const char* records_filenam
         save_page_at(pages_filename, *sibling, sibling_index, tree->order);
         save_page_at(pages_filename, p, page_index, tree->order);
         save_page_at(pages_filename, parent_page, p->parent_page, tree->order);
+        add_disk_write(3);
 
 
         free(compensation_entries);
@@ -347,6 +350,7 @@ int insert_entry_in_page(const char* pages_filename, struct page_entry *entry, s
     p->records_on_page = p->records_on_page + 1;
 
     save_page_at(pages_filename, p, page_index, tree->order);
+    add_disk_write(1);
 
     return 0;
 }
@@ -408,6 +412,7 @@ void insert_update_parent_addresses(const char* pages_filename, int page_index, 
 {
     struct page *parent = page_init(parent, tree->order);
     read_page(pages_filename, parent, page_index, tree->order);
+    add_disk_read(1);
     if(parent->is_leaf==true)
     {
         free(parent);
@@ -419,12 +424,16 @@ void insert_update_parent_addresses(const char* pages_filename, int page_index, 
     for(int i=0; i<n; i++)
     {
         read_page(pages_filename, p, parent->entries[i].other_page, tree->order);
+        add_disk_read(1);
         p->parent_page = page_index;
         save_page_at(pages_filename, p, parent->entries[i].other_page, tree->order);
+        add_disk_write(1);
     }
     read_page(pages_filename, p, parent->next_page, tree->order);
+    add_disk_read(1);
     p->parent_page = page_index;
     save_page_at(pages_filename, p, parent->next_page, tree->order);
+    add_disk_write(1);
     free(p);
     free(parent);
 }
@@ -436,18 +445,23 @@ int insert_split_2(const char* pages_filename, struct page_entry *entries, int e
     bool has_parent = p->parent_page == NIL ? false : true;
 
     if(has_parent)
+    {
+        add_disk_read(1);
         read_page(pages_filename, parent_page, p->parent_page, tree->order);
+    }
     else
     {
         parent_page->is_leaf = false;
         parent_page_index = save_page(pages_filename, parent_page, tree->order);
         set_metadata_number_of_pages(pages_filename, 1);
+        add_disk_write(1);
     }
 
     struct page *new_page = page_init(new_page, tree->order);
 
     int new_page_index = save_page(pages_filename, new_page, tree->order);
     set_metadata_number_of_pages(pages_filename, 1);
+    add_disk_write(1);
 
     p->records_on_page = 0;
     int index_of_entry_destined_to_parent = entries_size / 2;
@@ -483,6 +497,8 @@ int insert_split_2(const char* pages_filename, struct page_entry *entries, int e
     insert_update_parent_addresses(pages_filename, new_page_index, tree);
 
     save_page_at(pages_filename, p, page_index, tree->order);
+
+    add_disk_write(2);
 
     entries[index_of_entry_destined_to_parent].other_page = page_index; 
 
@@ -520,6 +536,7 @@ int insert_split_2(const char* pages_filename, struct page_entry *entries, int e
         }
 
         save_page_at(pages_filename, parent_page, p->parent_page, tree->order);
+        add_disk_write(1);
     }
 
     free(new_page);
@@ -528,6 +545,8 @@ int insert_split_2(const char* pages_filename, struct page_entry *entries, int e
 
 int btree_insert(const char* pages_filename, const char* records_filename, struct btree *tree, struct record *rec)
 {
+    set_disk_reads(0);
+    set_disk_writes(0);
     int key = rec->id;
     int data_address;
     if (btree_search(pages_filename, tree, key, &data_address) == true)
@@ -569,9 +588,16 @@ int btree_insert(const char* pages_filename, const char* records_filename, struc
         // reset all entries other_page to NIL - when compensation occur parent record will be changed
 
         if(left_sibling_index != NIL)
+        {
             read_page(pages_filename, left_sibling, left_sibling_index, tree->order);
+            add_disk_read(1);
+        }
         if(right_sibling_index != NIL)
+        {
             read_page(pages_filename, right_sibling, right_sibling_index, tree->order);
+            add_disk_read(1);
+        }
+            
 
         if(left_sibling_index != NIL)
             if(left_sibling->records_on_page < tree->order * 2) // copensation is possible with left neighbour
@@ -613,5 +639,35 @@ int btree_insert(const char* pages_filename, const char* records_filename, struc
     end:
 
     free(p);
+
+    printf("Operation done with %d disk reads and %d disk writes.\n", get_disk_reads(), get_disk_writes());
     return 0;
+}
+
+void traverse_page(const char* pages_filename, const char* records_filename, int page_index, struct btree *tree)
+{
+    if(page_index == NIL)
+        return;
+    struct page *p = page_init(p, tree->order);
+    struct record rec;
+    
+    read_page(pages_filename, p, page_index, tree->order);
+    add_disk_read(1);
+
+    for(int i=0; i<p->records_on_page; i++)
+    {
+        traverse_page(pages_filename, records_filename, p->entries[i].other_page, tree);
+        record_read(records_filename, &rec, p->entries[i].address_to_data);
+        print_record(&rec);
+    }
+    traverse_page(pages_filename, records_filename, p->next_page, tree);
+    free(p);
+}
+
+void traverse_tree(const char* pages_filename, const char* records_filename, struct btree *tree)
+{
+    set_disk_reads(0);
+    printf("Traversing tree:\n");
+    traverse_page(pages_filename, records_filename, tree->root_page, tree);
+    printf("Operation ended with %d disk reads\n", get_disk_reads());
 }
