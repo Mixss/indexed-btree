@@ -22,4 +22,6 @@ void print_record(struct record* rec);
 
 bool is_null(struct record *rec);
 
+void generate_random_record(struct record* rec, int max_value);
+
 #endif

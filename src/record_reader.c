@@ -85,7 +85,6 @@ int record_read(const char* records_filename, struct record *rec, int index)
     }
 
     int index_in_block = index % RECORDS_IN_BLOCK;
-    printf("Czytanie rekordu %d z bloku %d[%d]\n", index, block_nr, index_in_block);
     *rec = b.records[index_in_block];
 
     fclose(f);

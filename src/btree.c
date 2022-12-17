@@ -1,7 +1,6 @@
 #include "btree.h"
 #include "file_reader.h"
 #include "access_stats.h"
-#include "stack.h"
 #include <stdlib.h>
 #include "record_reader.h"
 
@@ -11,55 +10,6 @@ int btree_init(const char* pages_filename, const char* records_filename, int ord
     tree->height = 1;
     tree->order = order;
     tree->root_page = 0;
-}
-
-void print_tree(struct btree *tree, const char* pages_filename)
-{
-    printf("B-tree structure:\n\n");
-    struct page *p = page_init(p, tree->order);
-    //read_page(pages_filename, p, tree->root_page, tree->order);
-
-    struct stack st;
-    struct stack st2;
-    stack_clear(&st);
-    stack_clear(&st2);
-    
-    stack_push(&st, tree->root_page);
-
-    while(stack_len(&st) > 0)
-    {
-        while(stack_len(&st) > 0)
-        {
-            int ind = stack_pop_base(&st);
-            read_page(pages_filename, p, ind, tree->order);
-
-            print_page_keys(p);
-
-            for(int i=0; i<p->records_on_page; i++)
-            {
-                if(p->entries[i].other_page != NIL)
-                    stack_push(&st2, p->entries[i].other_page);
-            }
-            if(p->next_page != NIL)
-                stack_push(&st2, p->next_page);
-                printf("  ");
-        }
-        st = st2;
-        stack_clear(&st2);    
-        printf("\n\n");
-    }
-    
-    free(p);
-}
-
-void print_page_keys(struct page *p)
-{
-    printf("|");
-    for(int i=0; i<p->records_on_page; i++)
-    {
-        printf("|%d", p->entries[i].key);
-    }
-    printf("||");
 }
 
 bool btree_search(const char* pages_filename, struct btree *tree, int key, int *data_address)
@@ -115,7 +65,6 @@ bool btree_search(const char* pages_filename, struct btree *tree, int key, int *
             }
         }
     }
-
     free(p);
     return found;
 }
@@ -430,12 +379,10 @@ int insert_pack_entries_to_array(struct page_entry *entries, int entries_size, s
         entries[0] = *entry;
         return result;
     }
-    printf("<><><> %d\n", entries_size);
     int i=0;
     bool inserted = false;
     for(int j=0; j<entries_size; i++, j++)
     {
-        printf("%d a %d\n", ent.key, p->entries[i].key);
         if(inserted || ent.key > p->entries[i].key) 
         {
             entries[j] = p->entries[i];
@@ -457,257 +404,29 @@ int insert_pack_entries_to_array(struct page_entry *entries, int entries_size, s
         
 }
 
-int insert_split_page(const char* pages_filename, struct page_entry *entries, int entries_size, struct page *p, struct btree *tree, int page_index)
+void insert_update_parent_addresses(const char* pages_filename, int page_index, struct btree *tree)
 {
-    printf("<========================>\n\n\n");
-    // when page is full and we want to insert new entry
-    bool has_parent = p->parent_page == NIL ? false : true;
-    bool recursive = false;
-
-    int final_new_page = 0;
-
-    struct page *parent_page = page_init(parent_page, tree->order);
-
-    if(has_parent)
+    struct page *parent = page_init(parent, tree->order);
+    read_page(pages_filename, parent, page_index, tree->order);
+    if(parent->is_leaf==true)
     {
-        read_page(pages_filename, parent_page, p->parent_page, tree->order);
-        
-        int index_of_entry_destined_to_parent = entries_size / 2;
-
-        int parent_entries_size = parent_page->records_on_page + 1;
-        struct page_entry *parent_entries = calloc(parent_entries_size, sizeof(struct page_entry));
-
-        printf("Destynowany: %d\n", entries[index_of_entry_destined_to_parent].key);
-
-        insert_pack_entries_to_array(parent_entries, parent_entries_size, &entries[index_of_entry_destined_to_parent], parent_page);
-
-        printf("Potencjalny wygląd parenta:\n");
-        for(int i=0; i<parent_entries_size; i++)
-            printf("=> %d ", parent_entries[i].key);
-
-        printf("\n");
-
-        if(parent_page->records_on_page == tree->order * 2)
-        {
-            printf("Rekurencja!!!\n");
-            printf("p->parent_page = %d\n", p->parent_page);
-            p->parent_page = insert_split_page(pages_filename, parent_entries, parent_entries_size, parent_page, tree, p->parent_page);
-            // TODO PARENT SIE ZMIENIŁ
-            read_page(pages_filename, parent_page, p->parent_page, tree->order);
-            parent_entries_size = parent_page->records_on_page;
-            recursive = true;
-            printf("p->parent_page = %d\n", p->parent_page);
-        }
-
-        int index_of_p_in_parent = get_index_in_parent_page(parent_page, p);
-        printf("GOT: %d\n", index_of_p_in_parent);
-
-        struct page *new_page = page_init(new_page, tree->order);
-        p->records_on_page = 0;
-
-        int entries_counter = 0;
-        for(int i=0; i<entries_size/2; i++)
-        {
-            p->entries[i] = entries[entries_counter];
-            entries_counter++;
-            p->records_on_page = p->records_on_page + 1;
-        }
-
-        new_page->next_page = p->next_page;
-        p->next_page = entries[index_of_entry_destined_to_parent].other_page;
-        entries_counter++;
-        for(int i=0; i<entries_size/2; i++)
-        {
-            new_page->entries[i] = entries[entries_counter];
-            entries_counter++;
-            new_page->records_on_page = new_page->records_on_page + 1;
-        }
-
-        printf("Stary:\n");
-        for(int i=0; i<p->records_on_page; i++)
-            printf("> %d ", p->entries[i].key);
-
-        printf("\nNowy:\n");
-        for(int i=0; i<new_page->records_on_page; i++)
-            printf("> %d ", new_page->entries[i].key);
-        printf("\n");
-
-        new_page->parent_page = p->parent_page;
-
-        int new_page_index = save_page(pages_filename, new_page, tree->order);
-        set_metadata_number_of_pages(pages_filename, 1);
-
-        if(recursive == false)
-        {
-            if(index_of_p_in_parent == NEXT_PAGE_INDEX)
-                parent_page->next_page = new_page_index;
-            else
-                parent_page->entries[index_of_p_in_parent].other_page = new_page_index;
-        
-            entries[index_of_entry_destined_to_parent].other_page = page_index;
-            insert_entry_in_page(pages_filename, &entries[index_of_entry_destined_to_parent], parent_page, tree, p->parent_page);
-        }
-        else 
-        {
-            parent_page->next_page = new_page_index;
-            save_page_at(pages_filename, parent_page, p->parent_page, tree->order);
-        }
-        save_page_at(pages_filename, p, page_index, tree->order);
-
-        free(new_page);
-        end_has_parent:
-        free(parent_entries);
-    }
-    else 
-    {
-        printf("BEZ PARENTA!\n");
-        int index_of_entry_destined_to_root = entries_size / 2;
-        struct page *new_page = page_init(new_page, tree->order);
-        p->records_on_page = 0;
-
-        entries[entries_size - 1].other_page = p->next_page;
-
-        int entries_counter = 0;
-        for(int i=0; i<entries_size/2; i++)
-        {
-            p->entries[i] = entries[entries_counter];
-            entries_counter++;
-            p->records_on_page = p->records_on_page + 1;
-        }
-
-        new_page->next_page = NIL; // !!!!!!!!!!!!!
-        p->next_page = entries[index_of_entry_destined_to_root].other_page;
-        entries_counter++;
-        for(int i=0; i<entries_size/2; i++)
-        {
-            new_page->entries[i] = entries[entries_counter];
-            entries_counter++;
-            new_page->records_on_page = new_page->records_on_page + 1;
-        }
-
-        printf("Stary:\n");
-        for(int i=0; i<p->records_on_page; i++)
-            printf("> %d ", p->entries[i].key);
-
-        printf("\nNowy:\n");
-        for(int i=0; i<new_page->records_on_page; i++)
-            printf("> %d ", new_page->entries[i].key);
-        printf("\n");
-
-        parent_page->parent_page = NIL;
-        parent_page->records_on_page = 1;
-        parent_page->is_leaf = false;
-
-        new_page->parent_page = NIL; // will be updated
-        int new_page_index = save_page(pages_filename, new_page, tree->order);
-        set_metadata_number_of_pages(pages_filename, 1);
-
-        parent_page->next_page = new_page_index;
-
-        entries[index_of_entry_destined_to_root].other_page = page_index;
-
-        parent_page->entries[0] = entries[index_of_entry_destined_to_root];
-        p->parent_page = save_page(pages_filename, parent_page, tree->order);    
-        set_metadata_number_of_pages(pages_filename, 1);    
-
-        save_page_at(pages_filename, p, page_index, tree->order);
-
-        //update new page
-        new_page->parent_page = p->parent_page;
-        save_page_at(pages_filename, new_page, new_page_index, tree->order);
-
-        //update metadata
-        struct metadata data;
-        read_metadata(pages_filename, &data);
-
-        set_metadata_height(pages_filename, data.height + 1);
-        set_metadata_root_index(pages_filename, p->parent_page);
-        tree->height = data.height + 1;
-        tree->root_page = p->parent_page;
-
-        final_new_page = new_page_index;
-
-        free(new_page);
+        free(parent);
+        return;
     }
 
-    end:
-    free(parent_page);
-
-    printf("KONIEC=================\n");
-    return final_new_page;
-}
-
-int insert_split(const char* pages_filename, const char* records_filename, struct record *rec, struct page *p, struct btree *tree, int page_index)
-{
-    struct page *parent_page = page_init(parent_page, tree->order);
-
-    read_page(pages_filename, parent_page, p->parent_page, tree->order);
-    
-    int old_entry_index_in_parent = get_index_in_parent_page(parent_page, p);
-    struct page_entry new_entry;
-    new_entry.address_to_data = record_write(records_filename, rec);
-    new_entry.key = rec->id;
-    new_entry.other_page = NIL;
-
-    int entries_size = p->records_on_page + 1;
-    struct page_entry *entries = calloc(entries_size, sizeof(struct page_entry)); 
-    
-    int i=0;
-    bool inserted = false;
-    for(int j=0; j<entries_size; i++, j++)
+    int n = parent->records_on_page;
+    struct page *p = page_init(p, tree->order);
+    for(int i=0; i<n; i++)
     {
-        if(inserted || new_entry.key > p->entries[i].key) 
-        {
-            entries[j] = p->entries[i];
-        }
-        else    // put new entry here
-        {
-            entries[j] = new_entry;
-            inserted = true;
-            i--;
-        }
+        read_page(pages_filename, p, parent->entries[i].other_page, tree->order);
+        p->parent_page = page_index;
+        save_page_at(pages_filename, p, parent->entries[i].other_page, tree->order);
     }
-
-    int index_of_entry_destined_to_parent = entries_size / 2;
-    
-    struct page *new_page = page_init(new_page, tree->order);
-
-    p->records_on_page = 0;
-    int ent_counter = 0;
-
-    for(int i=0; i<entries_size / 2; i++)
-    {
-        p->entries[i] = entries[ent_counter];
-        ent_counter++;
-        p->records_on_page = p->records_on_page + 1;
-    }
-    ent_counter++;
-    entries[index_of_entry_destined_to_parent].other_page = page_index;
-
-    for(int i=0; i<entries_size / 2; i++)
-    {
-        new_page->entries[i] = entries[ent_counter];
-        ent_counter++;
-        new_page->records_on_page = new_page->records_on_page + 1;
-    }
-
-    int new_page_index = save_page(pages_filename, new_page, tree->order);
-    set_metadata_number_of_pages(pages_filename, 1);
-    if(old_entry_index_in_parent != NEXT_PAGE_INDEX)
-    {
-        parent_page->entries[old_entry_index_in_parent].other_page = new_page_index;
-    }
-    else
-    {
-        parent_page->next_page = new_page_index;
-    }
-    
-    insert_entry_in_page(pages_filename, &entries[index_of_entry_destined_to_parent], parent_page, tree, p->parent_page);
-    save_page_at(pages_filename, p, page_index, tree->order);
-
-    free(parent_page);
-    free(entries);
-    free(new_page);
+    read_page(pages_filename, p, parent->next_page, tree->order);
+    p->parent_page = page_index;
+    save_page_at(pages_filename, p, parent->next_page, tree->order);
+    free(p);
+    free(parent);
 }
 
 int insert_split_2(const char* pages_filename, struct page_entry *entries, int entries_size, struct btree *tree, struct page *p, int downsplit_left, int downsplit_right, int page_index)
@@ -725,12 +444,10 @@ int insert_split_2(const char* pages_filename, struct page_entry *entries, int e
         set_metadata_number_of_pages(pages_filename, 1);
     }
 
-    printf("%s\n", has_parent ? "Ma parenta\n" : "Nie ma parenta\n");
-    printf("PPI: %d\n", parent_page_index);
-
-    
-
     struct page *new_page = page_init(new_page, tree->order);
+
+    int new_page_index = save_page(pages_filename, new_page, tree->order);
+    set_metadata_number_of_pages(pages_filename, 1);
 
     p->records_on_page = 0;
     int index_of_entry_destined_to_parent = entries_size / 2;
@@ -751,52 +468,34 @@ int insert_split_2(const char* pages_filename, struct page_entry *entries, int e
         new_page->records_on_page = new_page->records_on_page + 1;
     }
 
-    printf("Stary:\n");
-    for(int i=0; i<p->records_on_page; i++)
-        printf("> %d ", p->entries[i].key);
-
-    printf("\nNowy:\n");
-    for(int i=0; i<new_page->records_on_page; i++)
-        printf("> %d ", new_page->entries[i].key);
-    printf("\n");
-
-    printf("Downsplity left=%d, right=%d\n", downsplit_left, downsplit_right);
     new_page->next_page = p->next_page;
     new_page->entries[0].other_page = downsplit_right;
     p->next_page = downsplit_left;
 
+    if(downsplit_right != NIL)
+        new_page->is_leaf = false;
+
     p->parent_page = parent_page_index;
     new_page->parent_page = parent_page_index;
 
-    int new_page_index = save_page(pages_filename, new_page, tree->order);
-    set_metadata_number_of_pages(pages_filename, 1);
+    save_page_at(pages_filename, new_page, new_page_index, tree->order);
+
+    insert_update_parent_addresses(pages_filename, new_page_index, tree);
 
     save_page_at(pages_filename, p, page_index, tree->order);
 
     entries[index_of_entry_destined_to_parent].other_page = page_index; 
-    printf("PAGE INDEX: %d\n", page_index);
-
-    printf("%d %d\n", parent_page->records_on_page + 1, entries[index_of_entry_destined_to_parent].key);
-
-    printf("Destynowany: %d\n", entries[index_of_entry_destined_to_parent].key);
 
     int new_p_in_parent_index = insert_pack_entries_to_array(entries, parent_page->records_on_page + 1, &entries[index_of_entry_destined_to_parent], parent_page);
-
-    for(int i=0; i<parent_page->records_on_page + 1; i++)
-        printf(">> %d ", entries[i].key);
-    printf("\nNPIPI: %d, ROPP: %d\n", new_p_in_parent_index, parent_page->records_on_page);
     
-    //if(parent_page->records_on_page > 0 && new_p_in_parent_index < parent_page->records_on_page)
     if(parent_page->records_on_page > 1 && new_p_in_parent_index < parent_page->records_on_page)
     {
-        printf("SPELNIŁ\n");
-        entries[new_p_in_parent_index + 1].other_page = new_page_index; // fałsz
+        entries[new_p_in_parent_index + 1].other_page = new_page_index; 
     }
     else parent_page->next_page = new_page_index;
 
     if(parent_page->records_on_page == tree->order * 2)
     {
-        // insert_split_2(pages_filename, entries, tree->order * 2 + 1, tree, parent_page, page_index, new_page_index, parent_page_index);
         insert_split_2(pages_filename, entries, tree->order * 2 + 1, tree, parent_page, entries[tree->order].other_page, entries[tree->order+1].other_page, p->parent_page);
     }
     else
@@ -812,7 +511,6 @@ int insert_split_2(const char* pages_filename, struct page_entry *entries, int e
         }
         else
         {
-            printf("bu!\n");
             parent_page->entries[0] = entries[0];
             parent_page->records_on_page = 1;
             tree->root_page = parent_page_index;
@@ -830,7 +528,6 @@ int insert_split_2(const char* pages_filename, struct page_entry *entries, int e
 
 int btree_insert(const char* pages_filename, const char* records_filename, struct btree *tree, struct record *rec)
 {
-    printf("INSERTING: %d\n", rec->id);
     int key = rec->id;
     int data_address;
     if (btree_search(pages_filename, tree, key, &data_address) == true)
@@ -844,7 +541,7 @@ int btree_insert(const char* pages_filename, const char* records_filename, struc
     int order = tree->order;
     struct page *p = page_init(p, order);
     int page_index = insert_find_page_candidate(pages_filename, tree, p, key);
-    printf("PC: %d\n", page_index);
+
     // check if basic insertion to the page is possible
     if(p->records_on_page < tree->order * 2) // there is vacancy in the page
     {
@@ -893,8 +590,6 @@ int btree_insert(const char* pages_filename, const char* records_filename, struc
         }
     }
 
-    printf("SPLIT!\n");
-
     struct page_entry new_entry;
     new_entry.address_to_data = record_write(records_filename, rec);
     new_entry.key = rec->id;
@@ -905,12 +600,6 @@ int btree_insert(const char* pages_filename, const char* records_filename, struc
 
     insert_pack_entries_to_array(entries, entries_size, &new_entry, p);
 
-    for(int i=0; i<entries_size; i++)
-        printf("-> %d ", entries[i].key);
-    
-    printf("\n");
-
-    // insert_split_page(pages_filename, entries, entries_size, p, tree, page_index);
     insert_split_2(pages_filename, entries, entries_size, tree, p, NIL, NIL, page_index);
 
     free(entries);

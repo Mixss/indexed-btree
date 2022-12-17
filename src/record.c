@@ -50,3 +50,13 @@ void record_set(struct record *rec, int id, int a0, int a1, int a2, int a3, int 
     rec->a[4] = a4;
     rec->x = x;
 }
+
+void generate_random_record(struct record* rec, int max_value)
+{
+    (*rec).a[0] = (rand() % (2 * max_value)) - max_value;
+    (*rec).a[1] = (rand() % (2 * max_value)) - max_value;
+    (*rec).a[2] = (rand() % (2 * max_value)) - max_value;
+    (*rec).a[3] = (rand() % (2 * max_value)) - max_value;
+    (*rec).a[4] = (rand() % (2 * max_value)) - max_value;
+    (*rec).x = (rand() % (2 * max_value)) - max_value;
+}
