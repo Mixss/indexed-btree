@@ -124,7 +124,6 @@ int save_page_at(const char* pages_filename, struct page *p, int index, int orde
 {
     FILE* f = fopen(pages_filename, "rb+");
     fseek(f, sizeof(struct metadata) + (index * PAGE_SIZE), 0);
-    p->address = index;
     if(fwrite(p, PAGE_SIZE, 1, f) < 1)
     {
         printf("Failed to write page at index %d\n", index);
@@ -189,6 +188,10 @@ int print_page_file(const char* pages_filename)
         }
         printf("Page %d: ", i);
         print_page_data(p);
+        int space = ((data.order * 2) - p->records_on_page) * sizeof(struct page_entry);
+        if(space > 0)
+            printf("\tempty space (%d bytes)\n", space);
+
     }
 
     free(p);

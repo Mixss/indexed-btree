@@ -20,6 +20,9 @@ void text_mode(const char* pages_filename, const char* records_filename, struct 
     }
 
     char command;
+    int sum = 0;
+    int sumw = 0;
+    int cnt = 0;
 
     while(fscanf(file, "%c", &command) != EOF)
     {
@@ -33,6 +36,9 @@ void text_mode(const char* pages_filename, const char* records_filename, struct 
             printf("Add: ");
             print_record(&rec);
             btree_insert(pages_filename, records_filename, tree, &rec);
+            sum += get_disk_reads();
+            sumw += get_disk_writes();
+            cnt++;
         }
         else if(command == 'o')
         {
@@ -40,11 +46,14 @@ void text_mode(const char* pages_filename, const char* records_filename, struct 
             int id;
             int x;
             int a[5];
-            fscanf(file, "%d %d %d %d %d %d %d", &id, &x, &a[0], &a[1], &a[2], &a[3], &a[4]);
+            fscanf(file, "%d %d %d %d %d %d %d", &id, &a[0], &a[1], &a[2], &a[3], &a[4], &x);
             record_set(&rec, id, a[0], a[1], a[2], a[3], a[4], x);
             printf("Add: ");
             print_record(&rec);
             btree_insert(pages_filename, records_filename, tree, &rec);
+            sum += get_disk_reads();
+            sumw += get_disk_writes();
+            cnt++;
         }
         else if(command == 'p')
         {
@@ -73,16 +82,25 @@ void text_mode(const char* pages_filename, const char* records_filename, struct 
             }
             else
                 printf("Record with key %d was not found\n", key);
+            sum += get_disk_reads();
+            sumw += get_disk_writes();
+            cnt++;
             printf("Operation done with %d disk reads.\n", get_disk_reads());
         }
     }
-
+    
+    float avg = ((float)sum)/cnt;
+    float avgw = ((float)sumw)/cnt;
+    printf("Average rpo: %f\nAverage wpo: %f\n", avg, avgw);
     fclose(file);
 }
 
 void interactive_mode(const char* pages_filename, const char* records_filename, struct btree *tree)
 {
     char command;
+    int sum = 0;
+    int sumw = 0;
+    int cnt = 0;
 
     while(scanf("%c", &command) != EOF)
     {
@@ -96,6 +114,8 @@ void interactive_mode(const char* pages_filename, const char* records_filename, 
             printf("Add: ");
             print_record(&rec);
             btree_insert(pages_filename, records_filename, tree, &rec);
+            sum += get_disk_reads();
+            cnt++;
         }
         else if(command == 'o')
         {
@@ -103,11 +123,13 @@ void interactive_mode(const char* pages_filename, const char* records_filename, 
             int id;
             int x;
             int a[5];
-            scanf("%d %d %d %d %d %d %d", &id, &x, &a[0], &a[1], &a[2], &a[3], &a[4]);
+            scanf("%d %d %d %d %d %d %d", &id, &a[0], &a[1], &a[2], &a[3], &a[4], &x);
             record_set(&rec, id, a[0], a[1], a[2], a[3], a[4], x);
             printf("Add: ");
             print_record(&rec);
             btree_insert(pages_filename, records_filename, tree, &rec);
+            sum += get_disk_reads();
+            cnt++;
         }
         else if(command == 'p')
         {
@@ -136,9 +158,14 @@ void interactive_mode(const char* pages_filename, const char* records_filename, 
             }
             else
                 printf("Record with key %d was not found\n", key);
+            sum += get_disk_reads();
+            cnt++;
             printf("Operation done with %d disk reads.\n", get_disk_reads());
         }
     }
+
+    float avg = ((float)sum)/cnt;
+    printf("Average rpo: %f\n", avg);
 }
 
 int main(int argc, char **argv)
@@ -146,18 +173,30 @@ int main(int argc, char **argv)
     const char* pages_filename = "./data/pages";
     const char* records_filename = "./data/records";
 
-    struct btree tree;
-    tree.order = 2;
-
-    btree_init(pages_filename, records_filename, 2, &tree);
-
     bool file_mode = false;
+    int order = 2;
 
     for(int i=1; i<argc; i++)
     {
-        if(strcmp(argv[i], "-f") == 0 || strcmp(argv[i], "--file") == 0)
+        if(strcmp(argv[i], "-f") == 0)
             file_mode = true;
+
+        else if(strcmp(argv[i], "-o") == 0)
+        {
+            if(i + 1 == argc)
+            {
+                printf("Specify tree order\n");
+                return 1;
+            }
+            order = atoi(argv[i + 1]);
+            printf("Initialized tree with order %d\n", order);
+        }
     }
+
+    struct btree tree;
+    tree.order = order;
+
+    btree_init(pages_filename, records_filename, order, &tree);
 
     if(!file_mode)
         interactive_mode(pages_filename, records_filename, &tree); 

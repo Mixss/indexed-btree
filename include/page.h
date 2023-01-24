@@ -15,7 +15,6 @@ struct page_entry
 
 struct page
 {
-    int address;
     int records_on_page;
     int parent_page;
     bool is_leaf;
