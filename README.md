@@ -8,7 +8,7 @@ $g(x) = a_0 + a_1 * x + a_2 * x^2 + a_3 * x^3+ a_4 * x^4$
 
 The definition of the B-tree may vary in the literature. Here's how it is defined in this project:
 
-Let $h>=0$, $d>=1$. B-tree with height $h$ and order $d$ is an ordered tree that is either empty ($h = 0$), or satisfies the following conditions:
+Let $h>=0$, $d>=1$. B-tree with height $h$ and order $d$ is an ordered tree that is either empty ( $h = 0$ ), or satisfies the following conditions:
 - all leaves are at the same level equal to $h$,
 - each page contains at most $2d$ keys,
 - each page except the root page contains at least $d$ keys,
